@@ -187,9 +187,18 @@ params = list(net.parameters()) + list(decoder.parameters())
 optimizer = torch.optim.Adam(params, lr=inputs.lr, weight_decay=inputs.weight_decay)
 #criterion = torch.nn.BCEWithLogitsLoss().to(args.device)
 
-if (inputs.model == 'pretrain'):
+if inputs.model == 'pretrain':
     net_dict = torch.load(f"saved_model/encoder.pkl", map_location='cpu')
-    net.load_state_dict(net_dict)
+    current_num_nodes = len(node2id)
+    pretrained_num_nodes = net_dict["emb.weight"].shape[0]
+    
+    if current_num_nodes < pretrained_num_nodes:
+        net_dict["emb.weight"] = net_dict["emb.weight"][:current_num_nodes, :]
+    elif current_num_nodes > pretrained_num_nodes:
+        padding = torch.randn(current_num_nodes - pretrained_num_nodes, 256)
+        net_dict["emb.weight"] = torch.cat([net_dict["emb.weight"], padding], dim=0)
+    
+    net.load_state_dict(net_dict, strict=False)
 
 def collate_fn(data):
     return torch.hstack(data)
